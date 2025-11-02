@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String            @id @default(cuid())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  role              UserRole
+  email             String            @unique
+  passwordHash      String
+
+  fullName          String?
+  phone             String?
+
+  companyName       String?
+  statusValidation  ValidationStatus  @default(PENDING)
+  profile           ArtisanProfile?
+
+  // relations
+  appointmentsAsClient  Appointment[] @relation("ClientAppointments")
+  appointmentsAsArtisan Appointment[] @relation("ArtisanAppointments")
+  reviewsWritten        Review[]      @relation("ClientReviews")
+  reviewsReceived       Review[]      @relation("ArtisanReviews")
+}
+
+enum UserRole {
+  CLIENT
+  ARTISAN
+  ADMIN
+}
+
+enum ValidationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ArtisanProfile {
+  id                     String           @id @default(cuid())
+  user                   User             @relation(fields: [userId], references: [id])
+  userId                 String           @unique
+
+  bio                    String?
+  trades                 String[]         // métiers déclarés
+  radiusKm               Int
+  latitude               Float
+  longitude              Float
+
+  hourlyRate             Int?
+  emergency24h           Boolean          @default(false)
+  hasInsuranceDecennale  Boolean          @default(false)
+
+  avgRating              Float            @default(0)
+  reviewCount            Int              @default(0)
+
+  photos                 String[]
+}
+
+model Appointment {
+  id                 String      @id @default(cuid())
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  artisan            User        @relation("ArtisanAppointments", fields: [artisanId], references: [id])
+  artisanId          String
+
+  client             User        @relation("ClientAppointments", fields: [clientId], references: [id])
+  clientId           String
+
+  start              DateTime
+  end                DateTime
+  address            String
+  problemType        String
+  descriptionClient  String
+
+  status             AppointmentStatus @default(PENDING)
+
+  review             Review?
+}
+
+enum AppointmentStatus {
+  PENDING
+  ACCEPTED
+  REFUSED
+  DONE
+  CANCELED
+}
+
+model Review {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId String      @unique
+
+  artisan       User        @relation("ArtisanReviews", fields: [artisanId], references: [id])
+  artisanId     String
+
+  client        User        @relation("ClientReviews", fields: [clientId], references: [id])
+  clientId      String
+
+  rating        Int
+  comment       String
+  isVisible     Boolean     @default(true)
+}
