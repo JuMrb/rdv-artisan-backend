@@ -1,5 +1,45 @@
 import express from "express";
 import cors from "cors";
+
+const app = express();
+
+/** ✅ CORS : autorise ton front Vercel (+ localhost pour dev) */
+const ALLOWED_ORIGINS = [
+  "https://rdv-artisan-frontend.vercel.app",
+  "http://localhost:3000",
+];
+
+// Si tu utilises une variable d'env CORS_ORIGIN (séparée par des virgules), on la prend :
+if (process.env.CORS_ORIGIN) {
+  ALLOWED_ORIGINS.push(
+    ...process.env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
+  );
+}
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // autorise les outils sans origin (curl, Postman) et ta liste blanche
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS blocked: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
+
+// important : répondre aux pré-requêtes
+app.options("*", cors());
+
+app.use(express.json());
+
+// ⬇️ ⬇️ tes routes existent déjà en dessous ⬇️ ⬇️
+// app.get("/health", (req, res) => res.json({ ok: true }));
+// app.use("/artisans", artisansRouter);
+// ...
+
+import express from "express";
+import cors from "cors";
 import { ENV } from "./config/env";
 
 import authRoutes from "./routes/auth.routes";
