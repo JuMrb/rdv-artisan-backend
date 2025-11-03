@@ -2,66 +2,45 @@ import { Request, Response } from "express";
 import { prisma } from "../config/prisma";
 
 export async function searchArtisans(req: Request, res: Response) {
-  const raw = (req.query.metier as string | undefined)?.trim();
-  const terms = raw
-    ? raw
-        .toLowerCase()
-        .split(/\s+/) // ex: "plombier urgence"
-        .filter(Boolean)
-    : [];
+  try {
+    const raw = (req.query.metier as string | undefined)?.trim();
+    const term = raw ? raw.toLowerCase() : undefined;
 
-  // Construire dynamiquement le where
-  const where: any = {
-    role: "ARTISAN",
-    statusValidation: "APPROVED",
-  };
+    // Filtre de base : uniquement des artisans validés
+    const where: any = { role: "ARTISAN", statusValidation: "APPROVED" };
 
-  // Filtre sur le profil UNIQUEMENT si on a un terme de recherche
-  if (terms.length > 0) {
-    where.OR = [
-      // 1) le ou les mots apparaissent dans les trades (array)
-      {
-        profile: {
-          is: {
-            trades: { hasSome: terms }, // au moins un mot correspond
-          },
-        },
-      },
-      // 2) ou correspond au nom d’entreprise
-      {
-        companyName: {
-          contains: raw, // on utilise la version originale (avec accents éventuellement)
-          mode: "insensitive",
-        },
-      },
-    ];
-  } else {
-    // si pas de terme, ne renvoyer que les artisans qui ont un profil
-    where.profile = { isNot: null };
+    // Si on a un terme, filtrer dans la relation 1–1 "profile"
+    if (term) {
+      where.profile = { is: { trades: { has: term } } };
+    } else {
+      // sinon renvoyer seulement ceux qui ont un profil
+      where.profile = { isNot: null };
+    }
+
+    const artisans = await prisma.user.findMany({
+      where,
+      include: { profile: true },
+      take: 20,
+      orderBy: [{ createdAt: "desc" }],
+    });
+
+    const results = artisans.map((a) => ({
+      id: a.id,
+      name: a.companyName ?? a.fullName ?? "Artisan",
+      trades: a.profile?.trades ?? [],
+      note: a.profile?.avgRating ?? 0,
+      avisCount: a.profile?.reviewCount ?? 0,
+      radiusKm: a.profile?.radiusKm ?? null,
+      statusValidation: a.statusValidation,
+    }));
+
+    res.json(results);
+  } catch (err) {
+    console.error("searchArtisans error:", err);
+    res.status(500).json({ error: "search_failed" });
   }
-
-  const artisans = await prisma.user.findMany({
-    where,
-    include: { profile: true },
-    take: 20,
-    orderBy: [
-      { profile: { avgRating: "desc" } as any }, // si null, Prisma l'ignore
-      { createdAt: "desc" },
-    ],
-  });
-
-  const results = artisans.map((a) => ({
-    id: a.id,
-    name: a.companyName ?? a.fullName ?? "Artisan",
-    trades: a.profile?.trades ?? [],
-    note: a.profile?.avgRating ?? 0,
-    avisCount: a.profile?.reviewCount ?? 0,
-    radiusKm: a.profile?.radiusKm ?? null,
-    statusValidation: a.statusValidation,
-  }));
-
-  res.json(results);
 }
+
 
 
 export async function getArtisanDetails(req: Request, res: Response) {
