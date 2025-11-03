@@ -10,24 +10,21 @@ import adminRoutes from "./routes/admin.routes";
 
 const app = express();
 
-// ✅ Autorise ton site Vercel (et localhost pour tests)
-app.use(
-  cors({
-    origin: [
-      "https://rdv-artisan-frontend.vercel.app",
-      "http://localhost:3000",
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-  })
-);
-
-// ✅ Gère les pré-requêtes "OPTIONS"
-app.options("*", cors());
+// ✅ CORS (sans app.options("*", ...))
+const corsOptions: cors.CorsOptions = {
+  origin: [
+    "https://rdv-artisan-frontend.vercel.app",
+    "http://localhost:3000",
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  optionsSuccessStatus: 204, // pour certains navigateurs anciens
+};
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// ✅ Route test pour vérifier que l'API répond
+// Santé
 app.get("/health", (_req, res) => {
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -36,7 +33,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-// ✅ Routes principales
+// Routes métier
 app.use("/auth", authRoutes);
 app.use("/artisans", artisansRoutes);
 app.use("/appointments", appointmentsRoutes);
@@ -44,9 +41,6 @@ app.use("/reviews", reviewsRoutes);
 app.use("/admin", adminRoutes);
 
 const port = ENV.PORT || "4000";
-
 app.listen(Number(port), "0.0.0.0", () => {
   console.log(`✅ API running on port ${port}`);
 });
-
-
