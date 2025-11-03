@@ -10,14 +10,20 @@ import adminRoutes from "./routes/admin.routes";
 
 const app = express();
 
-// CORS : autorise les appels du front local
+// ✅ Autorise ton site Vercel
 app.use(
   cors({
-    origin: ["http://localhost:3000"],
-    methods: ["GET", "POST", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: [
+      "https://rdv-artisan-frontend.vercel.app", // ton site en ligne
+      "http://localhost:3000", // utile pour les tests locaux
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
   })
 );
+
+// important : permet aussi le préflight OPTIONS
+app.options("*", cors());
 
 app.use(express.json());
 
